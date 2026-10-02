@@ -88,7 +88,12 @@ def bulk_action_alert():
     if not alerts:
         raise ApiError('not found', 404)
 
-    task = action_alerts.delay(alerts, action, text, timeout, g.login)
+    if action.startswith('bulk_'):
+        from alerta.bulk_tasks import bulk_action_alerts
+        task = bulk_action_alerts.delay(alerts, action, text, timeout, g.login)
+    else:
+        from alerta.tasks import action_alerts
+        task = action_alerts.delay(alerts, action, text, timeout, g.login)
 
     return jsonify(status='ok', message=f'{len(alerts)} alerts queued for action'), 202, {'Location': absolute_url('/_bulk/task/' + task.id)}
 
