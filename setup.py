@@ -15,7 +15,7 @@ setuptools.setup(
     description='Alerta server WSGI application',
     long_description=read('README.md'),
     long_description_content_type='text/markdown',
-    url='https://github.com/guardian/alerta',
+    url='https://github.com/untitledds/alerta',
     license='Apache License 2.0',
     author='Nick Satterly',
     author_email='nfsatterly@gmail.com',
@@ -59,20 +59,20 @@ setuptools.setup(
             'forwarder = alerta.plugins.forwarder:Forwarder',
             'timeout = alerta.plugins.timeout:TimeoutPolicy'
         ],
-        'alerta.webhooks': [
-            'cloudwatch = alerta.webhooks.cloudwatch:CloudWatchWebhook',
-            'grafana = alerta.webhooks.grafana:GrafanaWebhook',
-            'graylog = alerta.webhooks.graylog:GraylogWebhook',
-            'newrelic = alerta.webhooks.newrelic:NewRelicWebhook',
-            'pagerduty = alerta.webhooks.pagerduty:PagerDutyWebhook',
-            'pingdom = alerta.webhooks.pingdom:PingdomWebhook',
-            'prometheus = alerta.webhooks.prometheus:PrometheusWebhook',
-            'riemann = alerta.webhooks.riemann:RiemannWebhook',
-            'serverdensity = alerta.webhooks.serverdensity:ServerDensityWebhook',
-            'slack = alerta.webhooks.slack:SlackWebhook',
-            'stackdriver = alerta.webhooks.stackdriver:StackDriverWebhook',
-            'telegram = alerta.webhooks.telegram:TelegramWebhook'
-        ]
+        # 'alerta.webhooks': [
+        #     'cloudwatch = alerta.webhooks.cloudwatch:CloudWatchWebhook',
+        #     'grafana = alerta.webhooks.grafana:GrafanaWebhook',
+        #     'graylog = alerta.webhooks.graylog:GraylogWebhook',
+        #     'newrelic = alerta.webhooks.newrelic:NewRelicWebhook',
+        #     'pagerduty = alerta.webhooks.pagerduty:PagerDutyWebhook',
+        #     'pingdom = alerta.webhooks.pingdom:PingdomWebhook',
+        #     'prometheus = alerta.webhooks.prometheus:PrometheusWebhook',
+        #     'riemann = alerta.webhooks.riemann:RiemannWebhook',
+        #     'serverdensity = alerta.webhooks.serverdensity:ServerDensityWebhook',
+        #     'slack = alerta.webhooks.slack:SlackWebhook',
+        #     'stackdriver = alerta.webhooks.stackdriver:StackDriverWebhook',
+        #     'telegram = alerta.webhooks.telegram:TelegramWebhook'
+        # ]
     },
     keywords='alert monitoring system wsgi application api',
     classifiers=[

@@ -1,53 +1,102 @@
-FROM python:3.12-slim-bookworm
+# syntax=docker/dockerfile:1.7
+FROM python:3.12-slim-bookworm AS builder
 
 ARG BUILD_DATE
 ARG BUILD_NUMBER
 ARG RELEASE
 ARG VERSION
 
-LABEL org.opencontainers.image.description="Alerta API (dev)" \
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        libldap2-dev \
+        libpq-dev \
+        libsasl2-dev \
+        libxml2-dev \
+        libxslt1-dev \
+        python3-dev \
+        xmlsec1 \
+        libxmlsec1-dev \
+        pkg-config \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+
+COPY requirements.txt /build/requirements.txt
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip build wheel
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip wheel --wheel-dir /wheels -r /build/requirements.txt
+
+# 2) Потом код — он меняется чаще всего
+COPY . /build
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m build --wheel --outdir /wheels .
+
+
+FROM python:3.12-slim-bookworm AS runtime
+
+ARG BUILD_DATE
+ARG BUILD_NUMBER
+ARG RELEASE
+ARG VERSION
+
+LABEL org.opencontainers.image.title="alerta-api" \
+      org.opencontainers.image.description="Alerta API" \
       org.opencontainers.image.created=$BUILD_DATE \
-      org.opencontainers.image.url="https://github.com/alerta/alerta/pkgs/container/alerta-api" \
-      org.opencontainers.image.source="https://github.com/alerta/alerta" \
+      org.opencontainers.image.url="https://github.com/untitledds/alerta/pkgs/container/alerta-api" \
+      org.opencontainers.image.source="https://github.com/untitledds/alerta" \
       org.opencontainers.image.version=$RELEASE \
       org.opencontainers.image.revision=$VERSION \
       org.opencontainers.image.licenses=Apache-2.0
 
-ENV ALERTA_ENDPOINT=http://localhost:8080
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    ALERTA_ENDPOINT=http://localhost:8080 \
+    FLASK_SKIP_DOTENV=1
 
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    curl \
-    gnupg2 \
-    libldap2-dev \
-    libpq-dev \
-    libsasl2-dev \
-    postgresql-client \
-    python3-dev \
-    xmlsec1 && \
-    apt-get -y clean && \
-    apt-get -y autoremove && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+        libpq5 \
+        libldap-2.5-0 \
+        libsasl2-2 \
+        libxml2 \
+        libxslt1.1 \
+        xmlsec1 \
+        postgresql-client \
+        curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd -r alerta && \
+       useradd -r -g alerta -d /app -s /sbin/nologin alerta
 
-RUN groupadd -r alerta && useradd -r -g alerta -d /app -s /sbin/nologin alerta
-
-COPY . /app
 WORKDIR /app
 
-RUN echo "BUILD_NUMBER = '$BUILD_NUMBER'" > alerta/build.py && \
-    echo "BUILD_DATE = '$BUILD_DATE'"    >> alerta/build.py && \
-    echo "BUILD_VCS_NUMBER = '$VERSION'" >> alerta/build.py
+COPY --from=builder /wheels /wheels
+COPY --from=builder /build/requirements.txt /tmp/requirements.txt
 
-RUN python -m pip install --upgrade pip && \
-    pip install -r requirements.txt && \
-    pip install -r requirements-ci.txt && \
-    pip install .
+RUN pip install --no-index --find-links=/wheels -r /tmp/requirements.txt alerta-server \
+    && rm -rf /wheels /tmp/requirements.txt
 
+RUN SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])") && \
+    printf "BUILD_NUMBER = '%s'\nBUILD_DATE = '%s'\nBUILD_VCS_NUMBER = '%s'\n" \
+        "$BUILD_NUMBER" "$BUILD_DATE" "$VERSION" > "${SITE_PACKAGES}/alerta/build.py"
+
+
+COPY supervisord.conf /app/supervisord.conf
 RUN chown -R alerta:alerta /app
 USER alerta
 
 EXPOSE 8080
-ENV FLASK_SKIP_DOTENV=1
-CMD ["alertad", "run", "--host", "0.0.0.0", "--port", "8080"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS http://localhost:8080/healthcheck || exit 1
+
+CMD ["supervisord", "-c", "/app/supervisord.conf"]

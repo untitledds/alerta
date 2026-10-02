@@ -18,3 +18,7 @@ requests-hawk==1.2.1
 sentry-sdk[flask]==2.56.0
 StrEnum==0.4.15
 werkzeug==3.1.7
+alerta==8.5.3
+kombu
+celery
+supervisor
