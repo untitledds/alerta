@@ -23,3 +23,4 @@ kombu
 celery
 supervisor
 redis
+pika
