@@ -63,7 +63,7 @@ ENV PYTHONUNBUFFERED=1 \
     ALERTA_ENDPOINT=http://localhost:8080 \
     FLASK_SKIP_DOTENV=1 \
     # --- plugin bootstrap settings ---
-    PLUGINS="" \
+    BOOT_PLUGINS="" \
     PLUGINS_FILE="" \
     PLUGINS_DIR="/home/alerta/.local" \
     BOOTSTRAP_MARKER="/app/.plugins_bootstrapped" \

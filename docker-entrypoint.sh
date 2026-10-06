@@ -3,7 +3,7 @@ set -euo pipefail
 
 MARKER="${BOOTSTRAP_MARKER:-/app/.plugins_bootstrapped}"
 PLUGINS_DIR="${PLUGINS_DIR:-/home/alerta/.local}"
-PLUGINS="${PLUGINS:-}"
+BOOT_PLUGINS="${BOOT_PLUGINS:-}"
 PLUGINS_FILE="${PLUGINS_FILE:-}"
 
 bootstrap_plugins() {
@@ -18,9 +18,9 @@ bootstrap_plugins() {
         done < "${PLUGINS_FILE}"
     fi
 
-    if [[ -n "${PLUGINS}" ]]; then
+    if [[ -n "${BOOT_PLUGINS}" ]]; then
         # supports space- and comma-separated values
-        local normalized="${PLUGINS//,/ }"
+        local normalized="${BOOT_PLUGINS//,/ }"
         # shellcheck disable=SC2206
         pkgs+=(${normalized})
     fi
