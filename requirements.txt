@@ -22,3 +22,4 @@ alerta==8.5.3
 kombu
 celery
 supervisor
+redis
