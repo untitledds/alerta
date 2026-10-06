@@ -34,7 +34,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip wheel --wheel-dir /wheels -r /build/requirements.txt
 
-# 2) Потом код — он меняется чаще всего
 COPY . /build
 
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -62,7 +61,13 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
     ALERTA_ENDPOINT=http://localhost:8080 \
-    FLASK_SKIP_DOTENV=1
+    FLASK_SKIP_DOTENV=1 \
+    # --- plugin bootstrap settings ---
+    PLUGINS="" \
+    PLUGINS_FILE="" \
+    PLUGINS_DIR="/home/alerta/.local" \
+    BOOTSTRAP_MARKER="/app/.plugins_bootstrapped" \
+    HOME="/home/alerta"
 
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
         libpq5 \
@@ -75,7 +80,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
         curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r alerta && \
-       useradd -r -g alerta -d /app -s /sbin/nologin alerta
+       useradd -r -g alerta -m -d /home/alerta -s /sbin/nologin alerta
 
 WORKDIR /app
 
@@ -91,7 +96,11 @@ RUN SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])") &
 
 
 COPY supervisord.conf /app/supervisord.conf
-RUN chown -R alerta:alerta /app
+
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh && \
+    chown -R alerta:alerta /app /home/alerta
+
 USER alerta
 
 EXPOSE 8080
@@ -99,4 +108,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS http://localhost:8080/healthcheck || exit 1
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["supervisord", "-c", "/app/supervisord.conf"]
