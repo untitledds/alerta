@@ -17,10 +17,29 @@ logger = logging.getLogger(__name__)
 celery = create_celery_app()
 
 
+def _snapshot(alert: Alert) -> Dict[str, Any]:
+    return {
+        "id": alert.id,
+        "resource": alert.resource,
+        "event": alert.event,
+        "severity": alert.severity,
+        "environment": alert.environment or "",
+        "text": alert.text or "",
+        "status": alert.status or "open",
+        "value": str(alert.value or ""),
+        "group": alert.group or "",
+        "duplicate_count": int(alert.duplicate_count or 0),
+        "tags": list(alert.tags or []),
+        "service": list(alert.service or []),
+        "attributes": dict(alert.attributes or {}),
+        "create_time": alert.create_time.isoformat() if alert.create_time else None,
+        "receive_time": alert.receive_time.isoformat() if alert.receive_time else None,
+    }
+
+
 def _handle_bulk_action(
     alert_ids: List[str], action: str, text: str, login: str
 ) -> Dict[str, Any]:
-    """Вызывает plugin.take_action(head_alert, action, text) один раз."""
     from alerta.app import plugins
 
     g.login = login
@@ -40,15 +59,7 @@ def _handle_bulk_action(
     head_alert = alerts[0]
     head_alert.attributes["bulk_alert_ids"] = [a.id for a in alerts]
     head_alert.attributes["bulk_alerts"] = [
-        {
-            "id": a.id,
-            "resource": a.resource,
-            "event": a.event,
-            "severity": a.severity,
-            "text": a.text,
-            "attributes": a.attributes,
-        }
-        for a in alerts
+        _snapshot(a) for a in alerts
     ]
 
     wanted_plugins, wanted_config = plugins.routing(head_alert)
