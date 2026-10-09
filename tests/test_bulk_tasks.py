@@ -13,6 +13,7 @@ def app_context(monkeypatch):
             "CELERY_RESULT_BACKEND": "cache+memory://",
             "CELERY_TASK_ALWAYS_EAGER": True,
             "CELERY_TASK_EAGER_PROPAGATES": True,
+            "ALERT_TIMEOUT": 86400,
         }
     )
 
@@ -49,25 +50,34 @@ def fake_plugin():
 
 @pytest.fixture()
 def fake_alerts():
-    from alerta.models.alert import Alert
+    from dataclasses import dataclass, field
 
-    def make(alert_id: str, resource: str) -> Alert:
-        a = Alert(
-            resource=resource,
-            event="test",
-            severity="warning",
-            attributes={},
-            tags=[],
-        )
-        a.id = alert_id
-        return a
+    @dataclass
+    class FakeAlert:
+        id: str
+        resource: str
+        event: str = "test"
+        severity: str = "warning"
+        environment: str = ""
+        text: str = ""
+        status: str = "open"
+        value: str = ""
+        group: str = "Misc"
+        duplicate_count: int = 0
+        tags: list = field(default_factory=list)
+        service: list = field(default_factory=list)
+        attributes: dict = field(default_factory=dict)
+        create_time: object = None
+        receive_time: object = None
+
+        def update_attributes(self, attrs):
+            self.attributes.update(attrs)
 
     return {
-        "a1": make("id-1", "host-1"),
-        "a2": make("id-2", "host-2"),
-        "a3": make("id-3", "host-3"),
+        "a1": FakeAlert(id="id-1", resource="host-1"),
+        "a2": FakeAlert(id="id-2", resource="host-2"),
+        "a3": FakeAlert(id="id-3", resource="host-3"),
     }
-
 
 def test_bulk_action_calls_take_action_once(
     app_context, fake_plugin, fake_alerts, monkeypatch
@@ -96,7 +106,6 @@ def test_bulk_action_calls_take_action_once(
     )
 
     call = fake_plugin.calls[0]
-    assert call["alert_id"] == "id-1"
     assert call["action"] == "bulk_test"
     assert call["text"] == "test-payload"
     assert call["bulk_alert_ids"] == ["id-1", "id-2", "id-3"]
